@@ -21,6 +21,9 @@ private final class MenuBarController: NSObject, NSApplicationDelegate, NSPopove
     private let selection: CLISelection
     private let store: QuotaStore
     private let launchAtLogin = LaunchAtLogin()
+    private lazy var appearancePreference = AppearancePreference { [weak self] appearance in
+        self?.applyAppearance(appearance)
+    }
     private var timer: Timer?
     private var outsideMouseMonitor: Any?
     private var localMouseMonitor: Any?
@@ -53,12 +56,13 @@ private final class MenuBarController: NSObject, NSApplicationDelegate, NSPopove
             chooseCLI: { [weak self] in self?.chooseCLI() },
             manageUsage: { [weak self] in self?.manageUsage() },
             quit: { [weak self] in self?.quit() }
-        ).preferredColorScheme(.dark))
+        ))
         panel.sizingOptions = .preferredContentSize
         popover.contentViewController = panel
         popover.behavior = .transient
         popover.delegate = self
 
+        appearancePreference.apply()
         observeBadge()
         refresh()
         let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
@@ -117,6 +121,12 @@ private final class MenuBarController: NSObject, NSApplicationDelegate, NSPopove
         if popover.isShown { popover.performClose(nil) }
     }
 
+    private func applyAppearance(_ appearance: NSAppearance?) {
+        NSApp.appearance = appearance
+        popover.appearance = appearance
+        badge.appearance = appearance
+    }
+
     private func observeBadge() {
         withObservationTracking {
             let text = store.snapshot?.badgeText ?? "Codex —"
@@ -145,6 +155,8 @@ private final class MenuBarController: NSObject, NSApplicationDelegate, NSPopove
             for (title, action, shortcut) in actions {
                 menu.addItem(withTitle: title, action: action, keyEquivalent: shortcut).target = self
             }
+            menu.addItem(withTitle: "样式", action: nil, keyEquivalent: "")
+                .submenu = appearancePreference.makeMenu()
             menu.addItem(.separator())
             menu.addItem(withTitle: "退出", action: #selector(quit), keyEquivalent: "q").target = self
             menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.minY), in: button)
